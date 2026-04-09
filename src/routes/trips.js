@@ -1,5 +1,6 @@
 const express = require('express');
 const { createTrip, getTrips, getTrip, updateTrip, deleteTrip } = require('../controllers/tripController');
+const { generate, getCurrentPlan, getVersions, revertToVersion } = require('../controllers/planController');
 const { protect } = require('../middleware/auth');
 const { createTripRules, updateTripRules } = require('../middleware/validators/tripValidators');
 const validate = require('../middleware/validate');
@@ -14,5 +15,10 @@ router.get('/', getTrips);
 router.get('/:id', getTrip);
 router.patch('/:id', updateTripRules, validate, updateTrip);
 router.delete('/:id', deleteTrip);
+
+router.post('/:id/generate', generate);
+router.get('/:id/plan', getCurrentPlan);
+router.get('/:id/versions', getVersions);
+router.post('/:id/revert/:versionId', revertToVersion);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const Trip = require('../models/Trip');
+const Plan = require('../models/Plan');
 
 const createTrip = async (req, res, next) => {
   try {
@@ -30,7 +31,8 @@ const getTrip = async (req, res, next) => {
     if (!trip) {
       return res.status(404).json({ success: false, message: 'Trip not found' });
     }
-    res.json({ success: true, trip });
+    const plan = await Plan.findOne({ trip: trip._id, isCurrent: true });
+    res.json({ success: true, trip, plan: plan || null });
   } catch (err) {
     next(err);
   }
