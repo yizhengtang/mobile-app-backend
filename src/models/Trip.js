@@ -59,11 +59,10 @@ const tripSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-tripSchema.pre('save', function (next) {
+tripSchema.pre('save', function () {
   if (this.endDate <= this.startDate) {
-    return next(new Error('End date must be after start date'));
+    throw new Error('End date must be after start date');
   }
-  next();
 });
 
 module.exports = mongoose.model('Trip', tripSchema);

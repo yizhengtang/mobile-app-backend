@@ -16,7 +16,7 @@ const stopSchema = new mongoose.Schema(
     name: { type: String, required: true },
     category: {
       type: String,
-      enum: ['culture', 'food', 'nature', 'shopping', 'transit'],
+      enum: ['culture', 'food', 'nature', 'shopping', 'transit', 'rest'],
       required: true,
     },
     stopType: {

@@ -11,10 +11,10 @@ const router = express.Router();
 // All trip routes require authentication
 router.use(protect);
 
-router.post('/', createTripRules, validate, createTrip);
+router.post('/', ...createTripRules, validate, createTrip);
 router.get('/', getTrips);
 router.get('/:id', getTrip);
-router.patch('/:id', updateTripRules, validate, updateTrip);
+router.patch('/:id', ...updateTripRules, validate, updateTrip);
 router.delete('/:id', deleteTrip);
 
 router.post('/:id/generate', generate);
