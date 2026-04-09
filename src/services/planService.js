@@ -1,10 +1,11 @@
 const Plan = require('../models/Plan');
 const Trip = require('../models/Trip');
 const { getStructuredJSON } = require('./openaiService');
-const { buildItineraryPrompts } = require('./promptBuilder');
+const { buildItineraryPrompts, buildSurpriseMePrompts } = require('./promptBuilder');
 const { searchPlace, getPlaceDetails, getRestaurantsAlongRoute } = require('./googlePlacesService');
 const { getForecast } = require('./weatherService');
 const { withCache, TTL } = require('./cacheService');
+const { calculatePlanBudget } = require('./budgetService');
 
 const fetchLiveData = async (trip) => {
   const { city, country } = trip.destination;
@@ -54,14 +55,27 @@ const generatePlan = async (tripId, userId) => {
   await trip.save();
 
   try {
-    const liveData = await fetchLiveData(trip).catch(() => ({}));
-    const { systemPrompt, userPrompt } = buildItineraryPrompts(trip, liveData);
+    const numDays = Math.round(
+      (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
+    ) + 1;
+
+    // Run live data fetch and Surprise Me pre-planning in parallel
+    const [liveData, surpriseSuggestions] = await Promise.all([
+      fetchLiveData(trip).catch(() => ({})),
+      trip.surpriseMe
+        ? getStructuredJSON(...Object.values(buildSurpriseMePrompts(trip, numDays)))
+            .then((r) => r.suggestions || [])
+            .catch(() => [])
+        : Promise.resolve([]),
+    ]);
+
+    const { systemPrompt, userPrompt } = buildItineraryPrompts(trip, liveData, surpriseSuggestions);
     const aiResponse = await getStructuredJSON(systemPrompt, userPrompt);
 
-    // Calculate total budget across all days
-    const totalBudget = aiResponse.days.reduce(
-      (sum, day) => sum + (day.budgetBreakdown?.total || 0),
-      0
+    // Recalculate budget from actual stop data (overrides AI estimates)
+    const { days: enrichedDays, totalBudget } = calculatePlanBudget(
+      aiResponse.days,
+      { budgetPerDay: trip.budgetPerDay, currency: 'USD' }
     );
 
     // Mark any existing current plan as no longer current
@@ -76,7 +90,7 @@ const generatePlan = async (tripId, userId) => {
       user: userId,
       version,
       isCurrent: true,
-      days: aiResponse.days,
+      days: enrichedDays,
       totalBudget,
     });
 
