@@ -51,6 +51,10 @@ const tripSchema = new mongoose.Schema(
       type: String,
       default: '✈️',
     },
+    surpriseMe: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );

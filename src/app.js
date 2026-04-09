@@ -29,6 +29,7 @@ app.get('/health', (req, res) => {
 // Routes
 app.use('/api/auth',  require('./routes/auth'));
 app.use('/api/trips', require('./routes/trips'));
+app.use('/api/users', require('./routes/users'));
 
 // Global error handler — must be last
 app.use(errorHandler);

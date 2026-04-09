@@ -32,6 +32,9 @@ const createTripRules = [
   body('attractions')
     .optional()
     .isArray().withMessage('Attractions must be an array of strings'),
+  body('surpriseMe')
+    .optional()
+    .isBoolean().withMessage('surpriseMe must be true or false'),
 ];
 
 const updateTripRules = [
@@ -68,6 +71,7 @@ const updateTripRules = [
     .optional()
     .isArray().withMessage('Attractions must be an array of strings'),
   body('coverEmoji').optional().trim().notEmpty().withMessage('Cover emoji cannot be empty'),
+  body('surpriseMe').optional().isBoolean().withMessage('surpriseMe must be true or false'),
 ];
 
 module.exports = { createTripRules, updateTripRules };

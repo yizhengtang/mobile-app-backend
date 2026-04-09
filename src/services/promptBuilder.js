@@ -4,7 +4,7 @@
  * @param {object} liveData  - { weather, attractions, restaurants }
  * @returns {{ systemPrompt: string, userPrompt: string }}
  */
-const buildItineraryPrompts = (trip, liveData = {}) => {
+const buildItineraryPrompts = (trip, liveData = {}, surpriseSuggestions = []) => {
   const systemPrompt = `You are Wayfarer, an expert travel planner. Your job is to generate a detailed,
 day-by-day travel itinerary based on the trip details provided by the user.
 
@@ -101,6 +101,14 @@ Rules you MUST follow:
     ).join('\n')}`;
   }
 
+  // Surprise Me section
+  let surpriseSection = '';
+  if (surpriseSuggestions.length > 0) {
+    surpriseSection = `\nSurprise Me suggestions (mark these as stopType "ai_suggested", isOptional: true — include them if the schedule allows):\n${surpriseSuggestions.map((s) =>
+      `  - Day ${s.dayNumber}: ${s.name} (${s.category}, ~${s.estimatedDurationMinutes} min) — ${s.reason}`
+    ).join('\n')}`;
+  }
+
   const userPrompt = `Please generate a ${numDays}-day itinerary for the following trip:
 
 Destination: ${trip.destination.city}, ${trip.destination.country}
@@ -112,7 +120,8 @@ Preferred transport: ${trip.transportModes.join(', ')}
 Attractions to include:
 ${attractionsList}
 ${weatherSection}
-${restaurantSection}`;
+${restaurantSection}
+${surpriseSection}`;
 
   return { systemPrompt, userPrompt };
 };
@@ -152,4 +161,45 @@ ${JSON.stringify(plan.days, null, 2)}`;
   return { systemPrompt, messages };
 };
 
-module.exports = { buildItineraryPrompts, buildChatPrompts };
+/**
+ * Builds prompts for the Surprise Me pre-planning call.
+ * @param {object} trip       - Trip document.
+ * @param {number} numDays    - Number of trip days.
+ * @returns {{ systemPrompt: string, userPrompt: string }}
+ */
+const buildSurpriseMePrompts = (trip, numDays) => {
+  const systemPrompt = `You are Wayfarer, a travel expert who specialises in finding hidden gems —
+local spots that appear in travel blogs and neighbourhood guides but rarely in mainstream tourist itineraries.
+
+Respond with a valid JSON object in this exact structure:
+{
+  "suggestions": [
+    {
+      "name": "Place name",
+      "category": "culture | food | nature | shopping",
+      "dayNumber": 1,
+      "reason": "One sentence explaining why this is a hidden gem and why it fits this trip",
+      "estimatedDurationMinutes": 45
+    }
+  ]
+}
+
+Rules:
+- Suggest 3–5 hidden gems spread across the ${numDays} days.
+- Do NOT suggest any place already in the user's attractions list.
+- Prefer places that are thematically varied from the existing attractions.
+- Each suggestion must be a real place in the destination city.`;
+
+  const existingAttractions = trip.attractions.length > 0
+    ? trip.attractions.join(', ')
+    : 'none';
+
+  const userPrompt = `Find hidden gem suggestions for a ${numDays}-day trip to ${trip.destination.city}, ${trip.destination.country}.
+
+Existing attractions (do NOT duplicate these): ${existingAttractions}
+Trip pace: ${trip.pace}`;
+
+  return { systemPrompt, userPrompt };
+};
+
+module.exports = { buildItineraryPrompts, buildChatPrompts, buildSurpriseMePrompts };
