@@ -10,22 +10,26 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /**
  * Send a chat completion request to OpenAI and return parsed JSON.
  *
- * @param {string} systemPrompt - Instructions that define the AI's role and output format.
- * @param {string} userPrompt   - The actual request content (trip details, user message, etc.).
- * @param {string} model        - OpenAI model to use (default: gpt-4o-mini).
- * @returns {object}            - Parsed JSON object from the AI response.
+ * @param {string} systemPrompt       - Instructions that define the AI's role and output format.
+ * @param {string|Array} userPrompt   - A single user message string, or a full messages array for chat history.
+ * @param {string} model              - OpenAI model to use (default: gpt-4o-mini).
+ * @returns {object}                  - Parsed JSON object from the AI response.
  */
 const getStructuredJSON = async (systemPrompt, userPrompt, model = 'gpt-4o-mini') => {
   let lastError;
+
+  const messages = [
+    { role: 'system', content: systemPrompt },
+    ...(Array.isArray(userPrompt)
+      ? userPrompt
+      : [{ role: 'user', content: userPrompt }]),
+  ];
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const response = await client.chat.completions.create({
         model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user',   content: userPrompt },
-        ],
+        messages,
         response_format: { type: 'json_object' },
         temperature: 0.7,
       });

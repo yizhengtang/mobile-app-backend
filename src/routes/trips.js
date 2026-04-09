@@ -1,6 +1,7 @@
 const express = require('express');
 const { createTrip, getTrips, getTrip, updateTrip, deleteTrip } = require('../controllers/tripController');
 const { generate, getCurrentPlan, getVersions, revertToVersion } = require('../controllers/planController');
+const { sendMessage, getHistory } = require('../controllers/chatController');
 const { protect } = require('../middleware/auth');
 const { createTripRules, updateTripRules } = require('../middleware/validators/tripValidators');
 const validate = require('../middleware/validate');
@@ -20,5 +21,8 @@ router.post('/:id/generate', generate);
 router.get('/:id/plan', getCurrentPlan);
 router.get('/:id/versions', getVersions);
 router.post('/:id/revert/:versionId', revertToVersion);
+
+router.post('/:id/chat', sendMessage);
+router.get('/:id/chat', getHistory);
 
 module.exports = router;

@@ -77,4 +77,39 @@ ${attractionsList}`;
   return { systemPrompt, userPrompt };
 };
 
-module.exports = { buildItineraryPrompts };
+/**
+ * Builds the system and user prompts for conversational plan refinement.
+ * @param {object} plan        - Current Plan document.
+ * @param {Array}  history     - Prior ChatMessage documents for this trip.
+ * @param {string} userMessage - The new message from the user.
+ * @returns {{ systemPrompt: string, messages: Array }}
+ */
+const buildChatPrompts = (plan, history, userMessage) => {
+  const systemPrompt = `You are Wayfarer, an expert travel planner. The user has an existing travel itinerary
+and wants to make changes to it through conversation.
+
+When the user requests a change, you MUST respond with a JSON object in this exact structure:
+{
+  "summary": "One sentence describing what you changed",
+  "days": [ ...the full updated days array using the same schema as the original plan... ]
+}
+
+Rules:
+- Return the COMPLETE days array, not just the changed days.
+- Preserve all stops that were not affected by the change.
+- Keep the same JSON schema as the original plan (same fields on each stop and day).
+- If the request is unclear, make a reasonable interpretation and explain it in the summary.
+
+Current itinerary:
+${JSON.stringify(plan.days, null, 2)}`;
+
+  // Build messages array from history + new user message
+  const messages = [
+    ...history.map((msg) => ({ role: msg.role, content: msg.content })),
+    { role: 'user', content: userMessage },
+  ];
+
+  return { systemPrompt, messages };
+};
+
+module.exports = { buildItineraryPrompts, buildChatPrompts };
