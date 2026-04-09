@@ -1,9 +1,10 @@
 /**
  * Builds the system and user prompts for itinerary generation.
- * @param {object} trip - Trip document from MongoDB.
+ * @param {object} trip      - Trip document from MongoDB.
+ * @param {object} liveData  - { weather, attractions, restaurants }
  * @returns {{ systemPrompt: string, userPrompt: string }}
  */
-const buildItineraryPrompts = (trip) => {
+const buildItineraryPrompts = (trip, liveData = {}) => {
   const systemPrompt = `You are Wayfarer, an expert travel planner. Your job is to generate a detailed,
 day-by-day travel itinerary based on the trip details provided by the user.
 
@@ -59,9 +60,46 @@ Rules you MUST follow:
     (new Date(trip.endDate) - new Date(trip.startDate)) / (1000 * 60 * 60 * 24)
   ) + 1;
 
-  const attractionsList = trip.attractions.length > 0
-    ? trip.attractions.map((a, i) => `  ${i + 1}. ${a}`).join('\n')
-    : '  (No specific attractions listed — suggest popular highlights for the destination)';
+  const { weather = [], attractions = [], restaurants = [] } = liveData;
+
+  // Attractions section — use enriched data if available, fall back to plain names
+  let attractionsList;
+  if (attractions.length > 0) {
+    attractionsList = attractions.map((a, i) => {
+      const hours = a.openingHours ? `Opening hours: ${a.openingHours.join(' | ')}` : 'Opening hours: unknown';
+      const rating = a.rating ? `Rating: ${a.rating}/5 (${a.userRatingsTotal} reviews)` : '';
+      const coords = a.coordinates ? `Coordinates: ${a.coordinates.lat}, ${a.coordinates.lng}` : '';
+      return `  ${i + 1}. ${a.name}\n     ${hours}\n     ${[rating, coords].filter(Boolean).join(' | ')}`;
+    }).join('\n');
+  } else if (trip.attractions.length > 0) {
+    attractionsList = trip.attractions.map((a, i) => `  ${i + 1}. ${a}`).join('\n');
+  } else {
+    attractionsList = '  (No specific attractions listed — suggest popular highlights for the destination)';
+  }
+
+  // Weather section — only include days that fall within the trip dates
+  let weatherSection = '';
+  if (weather.length > 0) {
+    const tripStart = new Date(trip.startDate);
+    const tripEnd   = new Date(trip.endDate);
+    const relevant  = weather.filter((w) => {
+      const d = new Date(w.date);
+      return d >= tripStart && d <= tripEnd;
+    });
+    if (relevant.length > 0) {
+      weatherSection = `\nWeather forecast:\n${relevant.map((w) =>
+        `  ${w.date}: ${w.summary}, ${w.tempMin}–${w.tempMax}°C, rain: ${w.precipitationProbability}%${w.willRain ? ' ⚠️ swap outdoor stops for indoor alternatives' : ''}`
+      ).join('\n')}`;
+    }
+  }
+
+  // Restaurant candidates section
+  let restaurantSection = '';
+  if (restaurants.length > 0) {
+    restaurantSection = `\nNearby restaurant candidates (use these for meal stops where logical):\n${restaurants.map((r) =>
+      `  - ${r.name} | Rating: ${r.rating}/5 | Price level: ${'$'.repeat(r.priceLevel || 1)} | ${r.address}`
+    ).join('\n')}`;
+  }
 
   const userPrompt = `Please generate a ${numDays}-day itinerary for the following trip:
 
@@ -72,7 +110,9 @@ Daily budget: ${trip.budgetPerDay ? `USD ${trip.budgetPerDay}` : 'Not specified'
 Preferred transport: ${trip.transportModes.join(', ')}
 
 Attractions to include:
-${attractionsList}`;
+${attractionsList}
+${weatherSection}
+${restaurantSection}`;
 
   return { systemPrompt, userPrompt };
 };
