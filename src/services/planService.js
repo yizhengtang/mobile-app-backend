@@ -1,11 +1,13 @@
 const Plan = require('../models/Plan');
 const Trip = require('../models/Trip');
+const User = require('../models/User');
 const { getStructuredJSON } = require('./openaiService');
 const { buildItineraryPrompts, buildSurpriseMePrompts } = require('./promptBuilder');
 const { searchPlace, getPlaceDetails, getRestaurantsAlongRoute } = require('./googlePlacesService');
 const { getForecast } = require('./weatherService');
 const { withCache, TTL } = require('./cacheService');
 const { calculatePlanBudget } = require('./budgetService');
+const { sendPushNotification } = require('./notificationService');
 
 const fetchLiveData = async (trip) => {
   const { city, country } = trip.destination;
@@ -97,6 +99,16 @@ const generatePlan = async (tripId, userId) => {
     // Mark trip as ready
     trip.status = 'ready';
     await trip.save();
+
+    const user = await User.findById(userId).select('pushToken');
+    if (user?.pushToken) {
+      await sendPushNotification(
+        user.pushToken,
+        'Your itinerary is ready!',
+        `Your trip to ${trip.destination.city} is all planned out. Tap to explore.`,
+        { tripId: tripId.toString() }
+      );
+    }
 
     return plan;
   } catch (err) {
