@@ -44,4 +44,14 @@ const getMe = async (req, res) => {
   res.json({ success: true, user: req.user });
 };
 
-module.exports = { register, login, getMe };
+const savePushToken = async (req, res, next) => {
+  try {
+    const { pushToken } = req.body;
+    await User.findByIdAndUpdate(req.user._id, { pushToken });
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { register, login, getMe, savePushToken };
